@@ -1,0 +1,2079 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>本地支付长链生成器</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6f8;
+        --panel: #ffffff;
+        --ink: #161b22;
+        --muted: #667085;
+        --line: #d9dee7;
+        --soft: #eef3f7;
+        --accent: #087443;
+        --accent-dark: #075f38;
+        --blue: #155eef;
+        --danger: #b42318;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          "Microsoft YaHei", sans-serif;
+      }
+
+      main {
+        width: min(980px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 36px 0;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        align-items: end;
+        margin-bottom: 16px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 30px;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(92px, 1fr));
+        gap: 8px;
+        min-width: 320px;
+      }
+
+      .stat {
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 18px;
+      }
+
+      .stat span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .tool {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 18px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      textarea,
+      input,
+      select {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        padding: 10px 12px;
+        outline: none;
+      }
+
+      input[type="checkbox"] {
+        width: auto;
+        min-height: 0;
+        padding: 0;
+      }
+
+      textarea {
+        min-height: 180px;
+        resize: vertical;
+      }
+
+      textarea:focus,
+      input:focus,
+      select:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(8, 116, 67, 0.14);
+      }
+
+      .token-meta {
+        min-height: 22px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .proxy-chain {
+        grid-column: 1 / -1;
+      }
+
+      .checkline {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        margin: 0 0 10px;
+        color: var(--ink);
+        font-weight: 700;
+      }
+
+      .proxy-chain-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        gap: 10px;
+        align-items: end;
+      }
+
+      .proxy-chain-arrow {
+        min-height: 42px;
+        display: inline-flex;
+        align-items: center;
+        color: var(--muted);
+        font-weight: 800;
+      }
+
+      .search-select {
+        position: relative;
+      }
+
+      .search-menu {
+        display: none;
+        position: absolute;
+        z-index: 20;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        max-height: 230px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+      }
+
+      .search-menu.show {
+        display: block;
+      }
+
+      .search-option {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 9px 12px;
+        color: var(--ink);
+        cursor: pointer;
+      }
+
+      .search-option:hover,
+      .search-option.active {
+        background: var(--soft);
+      }
+
+      .search-option span:last-child {
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+
+      .hint {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      details {
+        border-top: 1px solid var(--line);
+        padding-top: 12px;
+      }
+
+      summary {
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .actions,
+      .result-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .luck-status {
+        color: var(--muted);
+        font-weight: 700;
+        line-height: 1.4;
+      }
+
+      .methods-result {
+        margin-top: 16px;
+        display: none;
+      }
+
+      .methods-result.show {
+        display: block;
+      }
+
+      .methods-table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+      }
+
+      .methods-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 760px;
+        font-size: 13px;
+      }
+
+      .methods-table th,
+      .methods-table td {
+        border-bottom: 1px solid var(--line);
+        padding: 8px 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .methods-table th {
+        background: #f8fafc;
+        font-weight: 800;
+      }
+
+      button,
+      a.button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        border: 0;
+        border-radius: 6px;
+        padding: 0 16px;
+        background: var(--accent);
+        color: white;
+        font: inherit;
+        font-weight: 800;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      button:hover,
+      a.button:hover {
+        background: var(--accent-dark);
+      }
+
+      button.secondary,
+      a.button.secondary {
+        background: var(--soft);
+        color: var(--ink);
+      }
+
+      button.secondary:hover,
+      a.button.secondary:hover {
+        background: #e1e8ee;
+      }
+
+      a.button.blue {
+        background: var(--blue);
+      }
+
+      a.button.blue:hover {
+        background: #114ac0;
+      }
+
+      button:disabled,
+      a.button.disabled {
+        pointer-events: none;
+        cursor: wait;
+        opacity: 0.62;
+      }
+
+      .status {
+        min-height: 24px;
+        color: var(--muted);
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      .proxy-live-status {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        min-height: 24px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .proxy-live-status span {
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid var(--line);
+        background: var(--soft);
+        color: var(--muted);
+      }
+
+      .proxy-live-status .ok {
+        border-color: rgba(8, 116, 67, 0.24);
+        background: rgba(8, 116, 67, 0.08);
+        color: var(--accent);
+      }
+
+      .proxy-live-status .bad {
+        border-color: rgba(180, 35, 24, 0.24);
+        background: rgba(180, 35, 24, 0.08);
+        color: var(--danger);
+      }
+
+
+      .queue-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #f0f6ff;
+        color: #175cd3;
+        font-weight: 700;
+      }
+      .qr-records {
+        display: none;
+        margin-top: 16px;
+      }
+      .qr-records.front-hidden {
+        display: none !important;
+      }
+      .qr-records.show {
+        display: block;
+      }
+      .qr-record-list {
+        display: grid;
+        gap: 8px;
+      }
+      .qr-record-row {
+        display: grid;
+        grid-template-columns: 56px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 8px;
+        border: 1px solid #d7dee8;
+        border-radius: 8px;
+        background: #fff;
+      }
+      .qr-record-row img {
+        width: 48px;
+        height: 48px;
+        cursor: zoom-in;
+      }
+      .qr-record-main {
+        min-width: 0;
+        display: grid;
+        gap: 3px;
+      }
+      .qr-record-trace {
+        font-weight: 700;
+        color: #101828;
+      }
+      .qr-record-url {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #475467;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+      }
+      .qr-modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(16, 24, 40, 0.58);
+        z-index: 50;
+        padding: 24px;
+      }
+      .qr-modal.show {
+        display: flex;
+      }
+      .qr-modal img {
+        width: min(80vw, 520px);
+        height: min(80vw, 520px);
+        background: #fff;
+        padding: 16px;
+        border-radius: 8px;
+      }
+
+      .result {
+        display: none;
+        margin-top: 2px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fbfcfd;
+      }
+
+      .result.show {
+        display: grid;
+        gap: 12px;
+      }
+
+      .row {
+        display: grid;
+        gap: 6px;
+      }
+
+      code {
+        display: block;
+        overflow-wrap: anywhere;
+        padding: 12px;
+        border-radius: 6px;
+        background: var(--soft);
+        color: #101828;
+        line-height: 1.45;
+      }
+
+      .step-log {
+        display: grid;
+        gap: 8px;
+        max-height: 360px;
+        overflow: auto;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--soft);
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .step-item {
+        display: grid;
+        grid-template-columns: 72px 44px minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(102, 112, 133, 0.18);
+      }
+
+      .step-item:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      .step-time,
+      .step-detail {
+        color: var(--muted);
+      }
+
+      .step-status-ok {
+        color: var(--accent);
+        font-weight: 800;
+      }
+
+      .step-status-fail {
+        color: var(--danger);
+        font-weight: 800;
+      }
+
+      .step-status-info {
+        color: var(--blue);
+        font-weight: 800;
+      }
+
+      .step-status-warn {
+        color: #b54708;
+        font-weight: 800;
+      }
+
+      .step-name {
+        font-weight: 800;
+        overflow-wrap: anywhere;
+      }
+
+      .step-detail {
+        grid-column: 3;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      @media (max-width: 840px) {
+        main {
+          width: min(100vw - 24px, 980px);
+          padding: 24px 0;
+        }
+
+        header {
+          display: grid;
+          align-items: start;
+        }
+
+        h1 {
+          font-size: 25px;
+        }
+
+        .stats {
+          min-width: 0;
+          width: 100%;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .ad-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .ad-links a {
+        color: #0f6bdc;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .ad-links a:hover {
+        text-decoration: underline;
+      }
+    
+.github-project-footer {
+  margin: 34px auto 18px;
+  padding: 18px 0 0;
+  text-align: center;
+  color: #667085;
+}
+.github-project-footer a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #24292f;
+  font-weight: 700;
+  text-decoration: none;
+}
+.github-project-footer a:hover { text-decoration: underline; }
+.github-project-footer svg { width: 20px; height: 20px; fill: currentColor; }
+
+</style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>本地支付长链生成器</h1>
+          <p>本地生成 pay.openai.com 长链；Token 只在本机浏览器输入，不会保存。</p>
+          <div class="ad-links">
+            <a href="https://example.com/shop/icloud-mail" target="_blank" rel="noopener noreferrer">链动小铺</a>
+            <a href="https://sms.example.com/" target="_blank" rel="noopener noreferrer">SMS接码</a>
+          </div>
+        </div>
+        <div class="stats" aria-label="local stats">
+          <div class="stat">
+            <strong>本地</strong>
+            <span>Token 不保存</span>
+          </div>
+          <div class="stat">
+            <strong>长链</strong>
+            <span>pay.openai.com</span>
+          </div>
+          <div class="stat">
+            <strong>Plus</strong>
+            <span>hosted</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="tool">
+        <div>
+          <label for="accessToken">Access Token 或 session JSON</label>
+          <textarea id="accessToken" autocomplete="off" spellcheck="false"></textarea>
+          <div id="tokenMeta" class="token-meta"></div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label for="authMode">授权模式</label>
+            <select id="authMode">
+              <option value="cdk" selected>CDK 后端校验</option>
+            </select>
+          </div>
+          <div>
+            <label for="cdkCode">CDK</label>
+            <input id="cdkCode" autocomplete="off" placeholder="输入 CDK" />
+          </div>
+          <div>
+            <label for="cdkQq">QQ（可选）</label>
+            <input id="cdkQq" autocomplete="off" inputmode="numeric" placeholder="QQ 验证已关闭，可不填" />
+          </div>
+          <div>
+            <label>CDK 次数</label>
+            <input id="cdkRemain" readonly value="未验证" />
+          </div>
+          <div>
+            <label for="priorityCode">插队卡</label>
+            <input id="priorityCode" autocomplete="off" placeholder="可选，CDK 格式" />
+          </div>
+          <div>
+            <label>当前排队</label>
+            <div id="queueStatus" class="queue-pill">排队 0</div>
+          </div>
+          <div>
+            <label for="linkType">链类型</label>
+            <select id="linkType">
+              <option value="hosted">支付长链（默认美国）</option>
+              <option value="paypal">PP 链提取（日本地址）</option>
+              <option value="ideal" selected>iDEAL link (NL -> NL)</option>
+              <option value="gopay">GoPay 链提取（印尼地址）</option>
+            </select>
+          </div>
+          <div>
+            <label for="checkoutMode">支付页模式</label>
+            <select id="checkoutMode">
+              <option value="hosted" selected>hosted: pay.openai.com 长链</option>
+            </select>
+          </div>
+          <div>
+            <label for="paymentLocale">支付页语言</label>
+            <select id="paymentLocale">
+              <option value="auto" selected>自动跟随链路</option>
+              <option value="en">英文</option>
+              <option value="zh-CN">简体中文</option>
+              <option value="zh-TW">繁体中文</option>
+              <option value="ja">日文</option>
+              <option value="ko">韩文</option>
+              <option value="de">德文</option>
+              <option value="fr">法文</option>
+              <option value="es">西班牙文</option>
+              <option value="id">印尼文</option>
+              <option value="pt-BR">葡萄牙文</option>
+            </select>
+          </div>
+          <div>
+            <label for="billingCountry">地区</label>
+            <select id="billingCountry"></select>
+          </div>
+          <div>
+            <label for="currency">币种</label>
+            <input id="currency" readonly />
+          </div>
+          <div>
+            <label for="proxy">自定义出口代理</label>
+            <input id="proxy" placeholder="留空使用后台默认代理，或输入自己的出口代理" />
+          </div>
+        </div>
+
+        <details>
+          <summary>高级选项</summary>
+          <div class="grid">
+            <div>
+              <label for="stripeKey">Stripe Publishable Key</label>
+              <input id="stripeKey" placeholder="pk_live_..." />
+            </div>
+            <div>
+              <label for="deviceId">Device ID</label>
+              <input id="deviceId" placeholder="留空自动生成" />
+            </div>
+            <div>
+              <label for="clientFingerprint">客户端指纹</label>
+              <select id="clientFingerprint">
+                <option value="chrome" selected>Chrome 桌面</option>
+                <option value="apple-safari">Apple Safari</option>
+              </select>
+            </div>
+            <div>
+              <label for="userAgent">User Agent</label>
+              <input id="userAgent" placeholder="留空使用默认 Chrome UA" />
+            </div>
+            <div>
+              <label class="checkline" for="diagnosticEnabled">
+                <input id="diagnosticEnabled" type="checkbox" />
+                开启诊断抓取
+              </label>
+            </div>
+            <div class="proxy-chain">
+              <label>代理链路选择</label>
+              <select id="proxyChainPreset">
+                <option value="default">源码默认</option>
+                <option value="dual_ideal">双链路 JP→NL + NL→NL</option>
+                <option value="JP_NL" selected>日本 JP → 荷兰 NL</option>
+                <option value="BR_NL">巴西 BR → 荷兰 NL</option>
+                <option value="NL_NL">荷兰 NL → 荷兰 NL</option>
+                <option value="US_US">美国 US → 美国 US</option>
+                <option value="JP_US">日本 JP → 美国 US</option>
+                <option value="JP_US_US">JP -> US -> approve US</option>
+                <option value="JP_US_JP">日本 JP → 美国 US → approve 日本 JP</option>
+                <option value="JP_JP">日本 JP → 日本 JP</option>
+                <option value="US_JP">美国 US → 日本 JP</option>
+                <option value="parallel4">同时跑 4 策略</option>
+                <option value="matrix8">Matrix 8 combos</option>
+                <option value="sequential8">Sequential 8 combos</option>
+                <option value="manual">手动选择</option>
+              </select>
+              <div class="proxy-chain-row">
+                <div>
+                  <label for="checkoutProxyRegion">前段代理地区</label>
+                  <div class="search-select">
+                    <input id="checkoutProxyRegion" autocomplete="off" placeholder="点击下拉或搜索地区，例如 JP" />
+                    <div id="checkoutProxyRegionMenu" class="search-menu"></div>
+                  </div>
+                </div>
+                <span class="proxy-chain-arrow">→</span>
+                <div>
+                  <label for="providerProxyRegion">后段代理地区</label>
+                  <div class="search-select">
+                    <input id="providerProxyRegion" autocomplete="off" placeholder="点击下拉或搜索地区" />
+                    <div id="providerProxyRegionMenu" class="search-menu"></div>
+                  </div>
+                </div>
+              </div>
+              <div id="proxyChainHint" class="hint"></div>
+              <div id="proxyTestResult" class="hint"></div>
+            </div>
+          </div>
+        </details>
+
+        <div class="actions">
+          <button id="generate">生成支付长链</button>
+          <button id="checkMethods" class="secondary" type="button">一键查支付方式</button>
+          <button id="paypalSweep" class="secondary" type="button">PayPal 国家轮询</button>
+          <button id="testProxy" class="secondary" type="button">测试代理</button>
+          <button id="saveProxy" class="secondary" type="button">保存代理</button>
+          <button id="clearProxy" class="secondary" type="button">清除保存</button>
+          <span id="proxyLiveStatus" class="proxy-live-status" aria-label="出口代理连接状态">
+            <span id="proxyLiveJp">JP: 检测中</span>
+            <span id="proxyLiveNl">NL: 检测中</span>
+          </span>
+          <a id="diagnosticLink" class="secondary disabled" href="#" target="_blank" rel="noreferrer" hidden>下载诊断</a>
+          <span id="diagnosticId" class="status"></span>
+          <span id="status" class="status">代理未检测。</span>
+        </div>
+
+        <div class="row">
+          <label>实时步骤日志</label>
+          <div id="stepLog" class="step-log"></div>
+        </div>
+
+        <div id="methodsResult" class="methods-result">
+          <div class="row">
+            <label>所有国家支付方式</label>
+            <div class="methods-table-wrap">
+              <table class="methods-table">
+                <thead>
+                  <tr>
+                    <th>国家</th>
+                    <th>币种</th>
+                    <th>金额</th>
+                    <th>Processor</th>
+                    <th>支付方式</th>
+                    <th>错误</th>
+                  </tr>
+                </thead>
+                <tbody id="methodsRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div id="result" class="result">
+          <div class="result-actions">
+            <a id="openLink" class="button blue disabled" target="_blank" rel="noopener">跳转长链</a>
+            <button id="copy" class="secondary" type="button" disabled>复制长链</button>
+            <span id="luckStatus" class="luck-status"></span>
+          </div>
+          <div class="row">
+            <label>长链</label>
+            <code id="longUrl"></code>
+          </div>
+          <div id="paymentQr" class="row payment-qr">
+            <div>
+              <label>支付二维码</label>
+              <img id="paymentQrImage" alt="支付二维码" />
+            </div>
+            <div>
+              <label>支付状态</label>
+              <div id="idealPayStatus" class="payment-status">等待检测</div>
+              <div id="idealPayCountdown" class="payment-countdown">剩余时间：--:--</div>
+            </div>
+            <button id="openQrLink" class="secondary" type="button">打开二维码链接</button>
+          </div>
+          <div class="row">
+            <label>CS ID / 地区 / 币种</label>
+            <code id="summary"></code>
+          </div>
+          <div class="row">
+            <label>提取状态</label>
+            <code id="extractStatus"></code>
+          </div>
+          <div class="row">
+            <label>Provider Redirect URL</label>
+            <code id="providerUrl"></code>
+          </div>
+          <div class="row">
+            <label>Stripe Redirect URL</label>
+            <code id="stripeRedirectUrl"></code>
+          </div>
+          <div class="row">
+            <label>原始 Stripe URL</label>
+            <code id="stripeUrl"></code>
+          </div>
+        </div>
+
+        <div id="qrRecords" class="qr-records front-hidden">
+          <div class="row">
+            <label>后台二维码记录</label>
+            <div id="qrRecordList" class="qr-record-list"></div>
+          </div>
+        </div>
+      </section>
+    
+
+<!-- project-footer:start -->
+<footer class="github-project-footer">
+  <a href="https://github.com/chixiaotao-Exm/ideal_links_Service" target="_blank" rel="noopener noreferrer" aria-label="GitHub: ideal_links_Service">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.65 7.65 0 0 1 8 3.87c.68 0 1.36.09 2 .26 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"></path></svg>
+    <span>ideal_links_Service</span>
+  </a>
+</footer>
+<!-- project-footer:end -->
+
+</main>
+    <div id="qrModal" class="qr-modal" role="dialog" aria-modal="true">
+      <img id="qrModalImage" alt="放大二维码" />
+    </div>
+
+    <script>
+      const COUNTRIES = [
+        ["US", "美国 US", "USD"],
+        ["GB", "英国 GB", "GBP"],
+        ["CA", "加拿大 CA", "CAD"],
+        ["AU", "澳大利亚 AU", "AUD"],
+        ["JP", "日本 JP", "JPY"],
+        ["SG", "新加坡 SG", "SGD"],
+        ["HK", "中国香港 HK", "HKD"],
+        ["TW", "中国台湾 TW", "TWD"],
+        ["KR", "韩国 KR", "KRW"],
+        ["ID", "印度尼西亚 ID", "IDR"],
+        ["MY", "马来西亚 MY", "MYR"],
+        ["TH", "泰国 TH", "THB"],
+        ["VN", "越南 VN", "VND"],
+        ["PH", "菲律宾 PH", "PHP"],
+        ["IN", "印度 IN", "INR"],
+        ["DE", "德国 DE", "EUR"],
+        ["FR", "法国 FR", "EUR"],
+        ["IT", "意大利 IT", "EUR"],
+        ["ES", "西班牙 ES", "EUR"],
+        ["NL", "荷兰 NL", "EUR"],
+        ["IE", "爱尔兰 IE", "EUR"],
+        ["PT", "葡萄牙 PT", "EUR"],
+        ["BE", "比利时 BE", "EUR"],
+        ["FI", "芬兰 FI", "EUR"],
+        ["AT", "奥地利 AT", "EUR"],
+        ["CH", "瑞士 CH", "CHF"],
+        ["SE", "瑞典 SE", "SEK"],
+        ["NO", "挪威 NO", "NOK"],
+        ["DK", "丹麦 DK", "DKK"],
+        ["PL", "波兰 PL", "PLN"],
+        ["CZ", "捷克 CZ", "CZK"],
+        ["MX", "墨西哥 MX", "MXN"],
+        ["BR", "巴西 BR", "BRL"],
+        ["NZ", "新西兰 NZ", "NZD"],
+      ];
+
+      const $ = (id) => document.getElementById(id);
+      const LOCKED_COUNTRY_BY_TYPE = {
+        paypal: "US",
+        ideal: "NL",
+        gopay: "ID",
+      };
+      const DEFAULT_PROXY_CHAIN_BY_TYPE = {
+        hosted: { checkout: "JP", provider: "不切换" },
+        paypal: { checkout: "JP", provider: "US" },
+        ideal: { checkout: "JP", provider: "NL" },
+        gopay: { checkout: "JP", provider: "ID" },
+      };
+      const PROXY_CHAIN_PRESETS = {
+        JP_NL: { checkout: "JP", provider: "NL", label: "日本 JP → 荷兰 NL" },
+        BR_NL: { checkout: "BR", provider: "NL", label: "巴西 BR → 荷兰 NL" },
+        NL_NL: { checkout: "NL", provider: "NL", label: "荷兰 NL → 荷兰 NL" },
+        US_US: { checkout: "US", provider: "US", label: "美国 US → 美国 US" },
+        JP_US: { checkout: "JP", provider: "US", label: "日本 JP → 美国 US" },
+        JP_US_US: { checkout: "JP", provider: "US", approve: "US", label: "JP -> US -> approve US" },
+        JP_US_JP: { checkout: "JP", provider: "US", approve: "JP", label: "日本 JP → 美国 US → approve 日本 JP" },
+        JP_JP: { checkout: "JP", provider: "same", label: "日本 JP → 日本 JP" },
+        US_JP: { checkout: "US", provider: "JP", label: "美国 US → 日本 JP" },
+      };
+      const SAME_PROVIDER_VALUES = new Set(["same", "none", "off", "no", "false", "0", "不切换", "不使用"]);
+      const generateButton = $("generate");
+      const checkMethodsButton = $("checkMethods");
+      const paypalSweepButton = $("paypalSweep");
+      const testProxyButton = $("testProxy");
+      const copyButton = $("copy");
+      const openLink = $("openLink");
+      const statusLine = $("status");
+      const DEFAULT_PROXY_VALUE = "";
+      const API_BASE = window.location.pathname.startsWith("/ideal2") ? "/ideal2" : "";
+      let currentLongUrl = "";
+      let idealStatusTimer = 0;
+      let idealCountdownTimer = 0;
+      let idealExpiresAt = 0;
+      const IDEAL_QR_FALLBACK_TTL_MS = 15 * 60 * 1000;
+      let accountStatusTimer = 0;
+
+      function cleanDisplayText(value) {
+        const text = String(value || "");
+        const compact = text.replace(/\s+/g, " ").trim();
+        if (compact.toLowerCase().includes("<html")) {
+          const status = compact.match(/\b(403|404|429|500|502|503|504)\b/);
+          return `返回 HTML${status ? ` / HTTP ${status[1]}` : ""}，请求未进入预期 API；详情看诊断 JSON。`;
+        }
+        return text;
+      }
+
+      function setStatus(text, isError = false) {
+        statusLine.textContent = cleanDisplayText(text);
+        statusLine.classList.toggle("error", isError);
+      }
+
+      function base64UrlDecode(value) {
+        const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+        const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+        return decodeURIComponent(
+          atob(padded)
+            .split("")
+            .map((char) => "%" + ("00" + char.charCodeAt(0).toString(16)).slice(-2))
+            .join(""),
+        );
+      }
+
+      function findToken(value) {
+        if (!value) return "";
+        if (typeof value === "string") return value.trim();
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            const token = findToken(item);
+            if (token) return token;
+          }
+        }
+        if (typeof value === "object") {
+          for (const key of ["accessToken", "access_token", "token"]) {
+            if (typeof value[key] === "string" && value[key].trim()) return value[key].trim();
+          }
+          for (const item of Object.values(value)) {
+            const token = findToken(item);
+            if (token) return token;
+          }
+        }
+        return "";
+      }
+
+      function readAccessTokenInput() {
+        const raw = $("accessToken").value.trim();
+        if (!raw) return "";
+        if (raw.startsWith("{") || raw.startsWith("[")) {
+          try {
+            return findToken(JSON.parse(raw)) || raw;
+          } catch {
+            return raw;
+          }
+        }
+        return raw;
+      }
+
+      function updateTokenMeta() {
+        const token = readAccessTokenInput();
+        if (!token.includes(".")) {
+          $("tokenMeta").textContent = "";
+          return;
+        }
+        try {
+          const payload = JSON.parse(base64UrlDecode(token.split(".")[1] || ""));
+          const profile = payload["https://api.openai.com/profile"] || {};
+          const email = profile.email || payload.email || "";
+          const accountStatus = detectAccountStatus(payload, profile);
+          $("tokenMeta").textContent = email
+            ? `已识别 token，可能关联邮箱：${email}`
+            : "已识别 token";
+          scheduleLiveAccountStatus(token, email, accountStatus);
+        } catch {
+          $("tokenMeta").textContent = "";
+        }
+      }
+
+      function detectAccountStatus(payload, profile) {
+        const haystack = JSON.stringify({ payload, profile }).toLowerCase();
+        const auth = payload["https://api.openai.com/auth"] || {};
+        const explicitValues = [
+          auth.chatgpt_plan_type,
+          auth.plan_type,
+          auth.account_status,
+          payload.account_status,
+          payload.accountStatus,
+          payload.plan,
+          payload.account_plan,
+          payload.subscription_plan,
+          payload.subscription?.plan,
+          payload.subscription?.status,
+          profile.account_status,
+          profile.accountStatus,
+          profile.plan,
+          profile.account_plan,
+          profile.subscription_plan,
+          profile.subscription?.plan,
+          profile.subscription?.status,
+        ].map((value) => String(value || "").toLowerCase());
+        if (explicitValues.some((value) => value.includes("plus") || value.includes("pro") || value.includes("paid"))) {
+          return "Plus";
+        }
+        if (explicitValues.some((value) => value.includes("free"))) {
+          return "Free";
+        }
+        if (payload.has_plus === true || profile.has_plus === true || payload.is_plus === true || profile.is_plus === true) {
+          return "Plus";
+        }
+        if (haystack.includes("chatgptplus") || haystack.includes("plus_user") || haystack.includes('"plus":true')) {
+          return "Plus";
+        }
+        if (haystack.includes('"free"')) {
+          return "Free";
+        }
+        return "未知";
+      }
+
+      function scheduleLiveAccountStatus(token, email, localStatus) {
+        window.clearTimeout(accountStatusTimer);
+        accountStatusTimer = window.setTimeout(() => refreshLiveAccountStatus(token, email, localStatus), 500);
+      }
+
+      async function refreshLiveAccountStatus(token, email, localStatus) {
+        try {
+          const payload = currentProxyPayload();
+          const response = await fetch(`${API_BASE}/api/account-status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken: token,
+              proxy: payload.proxy,
+              checkoutProxyRegion: payload.checkout_proxy_region,
+              clientFingerprint: $("clientFingerprint").value,
+              deviceId: $("deviceId").value.trim(),
+              userAgent: $("userAgent").value.trim(),
+            }),
+          });
+          const data = await readJsonResponse(response);
+          const liveEmail = data.email || email || "";
+          const status = data.status || localStatus || "未知";
+          const source = data.source && data.source !== "jwt" ? `，来源：实时检测` : "";
+          $("tokenMeta").textContent = liveEmail
+            ? `已识别 token，可能关联邮箱：${liveEmail}`
+            : "已识别 token";
+        } catch {
+          const status = localStatus || "未知";
+          $("tokenMeta").textContent = email
+            ? `已识别 token，可能关联邮箱：${email}`
+            : "已识别 token";
+        }
+      }
+
+      function fillCountries() {
+        const select = $("billingCountry");
+        select.innerHTML = "";
+        for (const [code, label] of COUNTRIES) {
+          const option = document.createElement("option");
+          option.value = code;
+          option.textContent = label;
+          if (code === "NL") option.selected = true;
+          select.appendChild(option);
+        }
+      }
+
+      function proxyRegionChoices(includeSame = false) {
+        const choices = COUNTRIES.map(([code, label]) => ({ value: code, label, code }));
+        if (includeSame) {
+          choices.unshift({ value: "不切换", label: "后段不切换，继续使用前段代理", code: "same" });
+        }
+        return choices;
+      }
+
+      function hideProxyRegionMenus() {
+        $("checkoutProxyRegionMenu").classList.remove("show");
+        $("providerProxyRegionMenu").classList.remove("show");
+      }
+
+      function renderProxyRegionMenu(inputId, menuId, includeSame = false, showAll = false) {
+        const input = $(inputId);
+        const menu = $(menuId);
+        if (input.disabled) {
+          menu.classList.remove("show");
+          return;
+        }
+
+        const query = String(input.value || "").trim().toLowerCase();
+        const choices = proxyRegionChoices(includeSame).filter((item) => {
+          if (showAll || !query) return true;
+          return (
+            item.value.toLowerCase().includes(query) ||
+            item.code.toLowerCase().includes(query) ||
+            item.label.toLowerCase().includes(query)
+          );
+        });
+
+        menu.innerHTML = "";
+        for (const item of choices) {
+          const option = document.createElement("div");
+          option.className = "search-option";
+          option.innerHTML = `<span>${item.label}</span><span>${item.code}</span>`;
+          option.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            input.value = item.value;
+            menu.classList.remove("show");
+            updateProxyChainHint();
+          });
+          menu.appendChild(option);
+        }
+
+        menu.classList.toggle("show", choices.length > 0);
+      }
+
+      function setupProxyRegionSearch(inputId, menuId, includeSame = false) {
+        const input = $(inputId);
+        input.addEventListener("focus", () => renderProxyRegionMenu(inputId, menuId, includeSame, true));
+        input.addEventListener("click", () => renderProxyRegionMenu(inputId, menuId, includeSame, true));
+        input.addEventListener("input", () => renderProxyRegionMenu(inputId, menuId, includeSame, false));
+        input.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter") return;
+          const first = $(menuId).querySelector(".search-option");
+          if (first) {
+            event.preventDefault();
+            first.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+          }
+        });
+      }
+
+      function fillProxyRegionOptions() {
+        setupProxyRegionSearch("checkoutProxyRegion", "checkoutProxyRegionMenu", false);
+        setupProxyRegionSearch("providerProxyRegion", "providerProxyRegionMenu", true);
+      }
+
+      function updateCurrency() {
+        const selected = COUNTRIES.find(([code]) => code === $("billingCountry").value);
+        $("currency").value = selected ? selected[2] : "USD";
+      }
+
+      function normalizeProxyRegionInput(value) {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        if (SAME_PROVIDER_VALUES.has(raw.toLowerCase())) return "same";
+        const upper = raw.toUpperCase();
+        const found = COUNTRIES.find(([code, label]) => {
+          return upper === code || label.toUpperCase() === upper || label.includes(raw);
+        });
+        return found ? found[0] : upper;
+      }
+
+      function proxyRegionLabel(value) {
+        const normalized = normalizeProxyRegionInput(value);
+        if (!normalized) return "未设置";
+        if (normalized === "same") return "不切换";
+        const found = COUNTRIES.find(([code]) => code === normalized);
+        return found ? found[1] : normalized;
+      }
+
+      function updateProxyChainHint() {
+        const checkout = normalizeProxyRegionInput($("checkoutProxyRegion").value);
+        const provider = normalizeProxyRegionInput($("providerProxyRegion").value);
+        const preset = $("proxyChainPreset").value;
+        const presetConfig = PROXY_CHAIN_PRESETS[preset];
+        let mode = "源码默认链路";
+        if (preset === "dual_ideal") {
+          mode = "双链路 iDEAL";
+        } else if (preset === "parallel4") {
+          mode = "并发代理链路";
+        } else if (preset === "manual") {
+          mode = "手动代理链路";
+        } else if (preset !== "default") {
+          mode = `预设代理链路 ${PROXY_CHAIN_PRESETS[preset]?.label || preset}`;
+        }
+        $("proxyChainHint").textContent =
+          preset === "dual_ideal"
+            ? `${mode}：同时测试 JP→NL 和 NL→NL，成功一个即停止`
+            : preset === "parallel4"
+            ? `${mode}：同时测试 US→US、JP→US、JP→JP、US→JP、JP→US→JP`
+            : `${mode}：前段 ${proxyRegionLabel(checkout)} → 后段 ${proxyRegionLabel(provider)}${
+                presetConfig?.approve ? ` → approve ${proxyRegionLabel(presetConfig.approve)}` : ""
+              }`;
+      }
+
+      function updateProxyChainEnabled() {
+        const enabled = $("proxyChainPreset").value === "manual";
+        $("checkoutProxyRegion").disabled = !enabled;
+        $("providerProxyRegion").disabled = !enabled;
+        if (!enabled) hideProxyRegionMenus();
+        updateProxyChainHint();
+      }
+
+      function applyDefaultProxyChain(linkType) {
+        const preset = $("proxyChainPreset").value;
+        const chain =
+          preset === "default" || preset === "manual" || preset === "dual_ideal" || preset === "parallel4" || preset === "matrix8" || preset === "sequential8"
+            ? DEFAULT_PROXY_CHAIN_BY_TYPE[linkType] || DEFAULT_PROXY_CHAIN_BY_TYPE.hosted
+            : PROXY_CHAIN_PRESETS[preset] || DEFAULT_PROXY_CHAIN_BY_TYPE[linkType] || DEFAULT_PROXY_CHAIN_BY_TYPE.hosted;
+        $("checkoutProxyRegion").value = chain.checkout;
+        $("providerProxyRegion").value = chain.provider;
+        updateProxyChainEnabled();
+      }
+
+      function updateLockedCountry() {
+        const linkType = $("linkType").value;
+        const lockedCountry = LOCKED_COUNTRY_BY_TYPE[linkType] || "US";
+        $("billingCountry").disabled = false;
+        if (!$("billingCountry").value) {
+          $("billingCountry").value = lockedCountry;
+        }
+        updateCurrency();
+        applyDefaultProxyChain(linkType);
+        generateButton.textContent =
+          linkType === "paypal" ? "提取 PP 链" : linkType === "ideal" ? "提取 iDEAL 链" : linkType === "gopay" ? "提取 GoPay 链" : "生成支付长链";
+      }
+
+      function loadProxy() {
+        $("proxy").value = localStorage.getItem("openai_pay_long_link_proxy") || DEFAULT_PROXY_VALUE;
+      }
+
+      function setLinkEnabled(enabled) {
+        copyButton.disabled = !enabled;
+        openLink.classList.toggle("disabled", !enabled);
+        openLink.href = enabled ? currentLongUrl : "";
+      }
+
+      function readCdkPayload() {
+        return {
+          cdkCode: $("cdkCode").value.trim(),
+          cdkQq: $("cdkQq").value.trim(),
+        };
+      }
+
+      function readPriorityPayload() {
+        return { priorityCode: $("priorityCode").value.trim() };
+      }
+
+      function renderQueueStatus(data = {}) {
+        const el = $("queueStatus");
+        if (!el) return;
+        const queued = Number(data.queued ?? data.queue_size ?? 0);
+        const position = Number(data.queue_position || 0);
+        const priority = data.priority ? " / 插队" : "";
+        el.textContent = position > 0 ? `排队 ${queued} / 位置 ${position}${priority}` : `排队 ${queued}${priority}`;
+      }
+
+      async function refreshQueueStatus() {
+        try {
+          const response = await fetch(`${API_BASE}/api/queue/status`, { cache: "no-store" });
+          const data = await readJsonResponse(response);
+          renderQueueStatus(data);
+        } catch {}
+      }
+
+      function showQrModal(src) {
+        const modal = $("qrModal");
+        const img = $("qrModalImage");
+        img.src = src;
+        modal.classList.add("show");
+      }
+
+      function hideQrModal() {
+        $("qrModal").classList.remove("show");
+        $("qrModalImage").removeAttribute("src");
+      }
+
+      async function refreshQrRecords() {
+        try {
+          const response = await fetch(`${API_BASE}/api/qr-records?limit=80`, { cache: "no-store" });
+          const data = await readJsonResponse(response);
+          const records = Array.isArray(data.records) ? data.records : [];
+          const wrap = $("qrRecords");
+          const list = $("qrRecordList");
+          if (!records.length) {
+            wrap.classList.remove("show");
+            list.innerHTML = "";
+            return;
+          }
+          list.innerHTML = "";
+          for (const item of records) {
+            const row = document.createElement("div");
+            row.className = "qr-record-row";
+            const img = document.createElement("img");
+            const qrSrc = `${API_BASE}/api/qr?text=${encodeURIComponent(item.long_url || "")}`;
+            img.src = qrSrc;
+            img.alt = "支付二维码";
+            img.addEventListener("click", () => showQrModal(qrSrc));
+            const main = document.createElement("div");
+            main.className = "qr-record-main";
+            const trace = document.createElement("div");
+            trace.className = "qr-record-trace";
+            trace.textContent = `QQ ${item.qq || "-"} / 剩余 ${Number(item.remaining || 0)} / ${Number(item.total || 0)}`;
+            const url = document.createElement("div");
+            url.className = "qr-record-url";
+            url.textContent = item.long_url || "";
+            main.append(trace, url);
+            const open = document.createElement("a");
+            open.className = "secondary";
+            open.href = item.long_url || "#";
+            open.target = "_blank";
+            open.rel = "noreferrer";
+            open.textContent = "打开";
+            row.append(img, main, open);
+            list.append(row);
+          }
+          wrap.classList.add("show");
+        } catch {}
+      }
+
+      async function saveQrRecordFromJob(jobId) {
+        if (!jobId) return;
+        try {
+          await fetch(`${API_BASE}/api/qr-records/from-job/${encodeURIComponent(jobId)}`, {
+            method: "POST",
+            cache: "no-store",
+          });
+        } catch {}
+      }
+
+      function renderCdkStatus(data) {
+        const remain = $("cdkRemain");
+        if (!data || !data.exists) {
+          remain.value = "未验证";
+          return;
+        }
+        const matchText = data.qq_check_disabled ? " / QQ验证已关闭" : data.qq_match === false ? " / QQ不匹配" : data.qq_bound ? " / QQ已绑定" : " / 首次绑定";
+        remain.value = `${Number(data.remaining || 0)} / ${Number(data.total || 0)}${matchText}`;
+      }
+
+      async function refreshCdkStatus() {
+        const { cdkCode, cdkQq } = readCdkPayload();
+        if (!cdkCode) {
+          renderCdkStatus(null);
+          return null;
+        }
+        const params = new URLSearchParams({ code: cdkCode, qq: cdkQq });
+        const response = await fetch(`${API_BASE}/api/cdk/status?${params.toString()}`, { cache: "no-store" });
+        const data = await readJsonResponse(response);
+        renderCdkStatus(data);
+        return data;
+      }
+
+      function requireCdkReady() {
+        const { cdkCode, cdkQq } = readCdkPayload();
+        if (!cdkCode) throw new Error("CDK 不能为空。");
+        return { cdkCode, cdkQq };
+      }
+
+      function setDiagnosticLink(url) {
+        const link = $("diagnosticLink");
+        const idLabel = $("diagnosticId");
+        const enabled = Boolean(url);
+        link.classList.add("disabled");
+        link.href = "#";
+        const match = enabled ? String(url).match(/\/jobs\/([a-f0-9]{32})\/diagnostics/) : null;
+        idLabel.textContent = match ? `诊断ID: ${match[1]}` : "";
+      }
+
+      async function refreshDiagnosticLink(jobId) {
+        if (!$("diagnosticEnabled").checked) return "";
+        await sleep(500);
+        try {
+          const response = await fetch(`${API_BASE}/api/long-link/jobs/${encodeURIComponent(jobId)}`, {
+            cache: "no-store",
+          });
+          const data = await readJsonResponse(response);
+          setDiagnosticLink(data.diagnostic_url || "");
+          return data.diagnostic_url || "";
+        } catch {
+          return "";
+        }
+      }
+
+      function currentProxyPayload() {
+        const linkType = $("linkType").value;
+        const proxy = $("proxy").value.trim();
+        const preset = $("proxyChainPreset").value;
+        const chain =
+          preset === "default" || preset === "manual" || preset === "dual_ideal" || preset === "parallel4" || preset === "matrix8" || preset === "sequential8"
+            ? DEFAULT_PROXY_CHAIN_BY_TYPE[linkType] || DEFAULT_PROXY_CHAIN_BY_TYPE.hosted
+            : PROXY_CHAIN_PRESETS[preset] || DEFAULT_PROXY_CHAIN_BY_TYPE[linkType] || DEFAULT_PROXY_CHAIN_BY_TYPE.hosted;
+        return {
+          link_type: linkType,
+          proxy,
+          proxy_chain_strategy: preset === "dual_ideal" || preset === "parallel4" || preset === "matrix8" || preset === "sequential8" ? preset : "",
+          diagnostic_enabled: $("diagnosticEnabled").checked,
+          approve_proxy_region: preset === "manual" ? "" : (chain.approve || ""),
+          checkout_proxy_region: preset === "manual" ? normalizeProxyRegionInput($("checkoutProxyRegion").value) : chain.checkout,
+          provider_proxy_region: preset === "manual" ? normalizeProxyRegionInput($("providerProxyRegion").value) : chain.provider,
+        };
+      }
+
+      function formatProbeResult(title, result) {
+        if (!result) return "";
+        const ok = result.ok && result.match;
+        const skipped = result.skipped ? "（同前段）" : "";
+        const detail = result.error ? `，错误：${result.error}` : "";
+        const ip = result.ip ? `，IP ${result.ip}` : "";
+        return `${ok ? "✅" : "❌"} ${title}${skipped}：期望 ${result.expected_region || "-"}，实际 ${
+          result.actual_region || "-"
+        }${ip}${detail}`;
+      }
+
+      function currentLogTime() {
+        return new Date().toLocaleTimeString("zh-CN", { hour12: false });
+      }
+
+      function renderStepLog(steps) {
+        const container = $("stepLog");
+        container.innerHTML = "";
+        const list = Array.isArray(steps) ? steps : [];
+        if (!list.length) {
+          const empty = document.createElement("div");
+          empty.className = "step-detail";
+          empty.textContent = "暂无步骤日志。";
+          container.appendChild(empty);
+          return;
+        }
+
+        const statusText = {
+          ok: "成功",
+          fail: "失败",
+          info: "执行",
+          warn: "警告",
+        };
+        for (const item of list) {
+          const status = String(item.status || "info").toLowerCase();
+          const row = document.createElement("div");
+          row.className = "step-item";
+
+          const time = document.createElement("div");
+          time.className = "step-time";
+          time.textContent = item.time || "";
+
+          const badge = document.createElement("div");
+          badge.className = `step-status-${status === "ok" || status === "fail" || status === "warn" ? status : "info"}`;
+          badge.textContent = statusText[status] || status;
+
+          const name = document.createElement("div");
+          name.className = "step-name";
+          name.textContent = item.name || "";
+
+          const detail = document.createElement("div");
+          detail.className = "step-detail";
+          detail.textContent = cleanDisplayText(item.detail || "");
+
+          row.appendChild(time);
+          row.appendChild(badge);
+          row.appendChild(name);
+          row.appendChild(detail);
+          container.appendChild(row);
+        }
+      }
+
+      async function readJsonResponse(response) {
+        const text = await response.text();
+        if (!text) return {};
+        try {
+          return JSON.parse(text);
+        } catch {
+          const preview = text.replace(/\s+/g, " ").slice(0, 500);
+          throw new Error(cleanDisplayText(preview) || "接口返回不是 JSON");
+        }
+      }
+
+      function responseErrorMessage(data, fallback = "请求失败") {
+        const detail = data && data.detail;
+        if (detail && typeof detail === "object") {
+          return detail.message || fallback;
+        }
+        return cleanDisplayText(detail || fallback);
+      }
+
+      function maybeAlertIcloudPurchase(data) {
+        const detail = data && data.detail;
+        if (detail && typeof detail === "object" && detail.purchase_url) {
+          alert(`请到${detail.purchase_url}购买Icloud邮箱`);
+          return true;
+        }
+        return false;
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      function setIdealPayStatus(text, state = "") {
+        const el = $("idealPayStatus");
+        const normalized = state === "unknown" ? "pending" : state;
+        el.textContent = text;
+        el.className = `payment-status ${normalized}`.trim();
+      }
+
+      function stopIdealStatusPolling() {
+        if (idealStatusTimer) {
+          clearInterval(idealStatusTimer);
+          idealStatusTimer = 0;
+        }
+      }
+
+      function formatRemaining(ms) {
+        const total = Math.max(0, Math.ceil(ms / 1000));
+        const minutes = String(Math.floor(total / 60)).padStart(2, "0");
+        const seconds = String(total % 60).padStart(2, "0");
+        return `${minutes}:${seconds}`;
+      }
+
+      function renderIdealCountdown() {
+        const el = $("idealPayCountdown");
+        if (!idealExpiresAt) {
+          el.textContent = "\u5269\u4f59\u65f6\u95f4\uff1a\u83b7\u53d6\u4e2d";
+          el.classList.remove("expired");
+          return;
+        }
+        const remaining = idealExpiresAt - Date.now();
+        el.textContent = `剩余时间：${formatRemaining(remaining)}`;
+        el.classList.toggle("expired", remaining <= 0);
+        if (remaining <= 0) {
+          setIdealPayStatus("已过期", "expired");
+          stopIdealStatusPolling();
+          stopIdealCountdown();
+        }
+      }
+
+      function stopIdealCountdown() {
+        if (idealCountdownTimer) {
+          clearInterval(idealCountdownTimer);
+          idealCountdownTimer = 0;
+        }
+      }
+
+      function startIdealCountdown(expiresAt = 0) {
+        stopIdealCountdown();
+        idealExpiresAt = expiresAt || Date.now() + IDEAL_QR_FALLBACK_TTL_MS;
+        renderIdealCountdown();
+        idealCountdownTimer = setInterval(renderIdealCountdown, 1000);
+      }
+
+      async function refreshIdealPayStatus(url) {
+        if (!url) return;
+        try {
+          const response = await fetch(`${API_BASE}/api/ideal/status?url=${encodeURIComponent(url)}`, { cache: "no-store" });
+          const data = await readJsonResponse(response);
+          const status = data.status || "unknown";
+          setIdealPayStatus(data.label || "状态未知", status);
+          if (data.expires_at) {
+            const parsed = Date.parse(data.expires_at);
+            if (Number.isFinite(parsed) && parsed > 0 && Math.abs(parsed - idealExpiresAt) > 1000) {
+              startIdealCountdown(parsed);
+            }
+          }
+          if (["paid", "failed", "cancelled", "expired", "unsupported"].includes(status)) {
+            stopIdealStatusPolling();
+            if (status === "expired") {
+              const el = $("idealPayCountdown");
+              if (el) {
+                el.textContent = "\u5269\u4f59\u65f6\u95f4\uff1a\u5df2\u8fc7\u671f";
+                el.classList.add("expired");
+              }
+            }
+            if (status !== "pending") stopIdealCountdown();
+          }
+        } catch {
+          setIdealPayStatus("状态检测失败", "failed");
+        }
+      }
+
+      function startIdealStatusPolling(url) {
+        stopIdealStatusPolling();
+        setIdealPayStatus("等待支付", "pending");
+        startIdealCountdown();
+        refreshIdealPayStatus(url);
+        idealStatusTimer = setInterval(() => refreshIdealPayStatus(url), 3000);
+      }
+
+      function renderPaymentQr(url) {
+        const wrap = $("paymentQr");
+        const img = $("paymentQrImage");
+        if (!url || !/^https:\/\/pay\.ideal\.nl\//i.test(url)) {
+          stopIdealStatusPolling();
+          stopIdealCountdown();
+          idealExpiresAt = 0;
+          renderIdealCountdown();
+          wrap.classList.remove("show");
+          img.removeAttribute("src");
+          return;
+        }
+        img.src = `${API_BASE}/api/qr?text=${encodeURIComponent(url)}`;
+        wrap.classList.add("show");
+        startIdealStatusPolling(url);
+      }
+
+      function renderLongLinkResult(data) {
+        currentLongUrl = data.long_url || "";
+        $("longUrl").textContent = currentLongUrl;
+        renderPaymentQr(currentLongUrl);
+        const amount = data.amount_display || (data.amount ? `amount=${data.amount}` : "");
+        const csCount = Number(data.cs_count || 1);
+        $("luckStatus").textContent = csCount > 1
+          ? `您的运气太差了，居然用了${csCount}次Cs_Live才提取成功 😮‍💨`
+          : `您的运气太好了，居然用了${csCount}次Cs_Live就提取成功！！ 😄`;
+        $("summary").textContent = `${data.cs_id || ""} / ${data.billing_country || ""} / ${
+          data.currency || ""
+        } / ${data.link_type || ""}${amount ? ` / ${amount}` : ""}`;
+        $("extractStatus").textContent = data.fallback
+          ? `已回退 hosted：${data.provider_error || "provider redirect 提取失败"}`
+          : "OK";
+        $("providerUrl").textContent = data.provider_redirect_url || "";
+        $("stripeRedirectUrl").textContent = data.stripe_redirect_url || "";
+        $("stripeUrl").textContent = data.stripe_hosted_url || "";
+        $("result").classList.add("show");
+        setLinkEnabled(Boolean(currentLongUrl));
+      }
+
+      async function pollLongLinkJob(jobId) {
+        let lastStepCount = 0;
+        for (;;) {
+          const response = await fetch(`${API_BASE}/api/long-link/jobs/${encodeURIComponent(jobId)}`, {
+            cache: "no-store",
+          });
+          const data = await readJsonResponse(response);
+          if (!response.ok) {
+            throw new Error(data.detail || "读取实时日志失败");
+          }
+
+          renderQueueStatus(data);
+          const steps = Array.isArray(data.steps) ? data.steps : [];
+          renderStepLog(steps);
+          setDiagnosticLink(data.diagnostic_url || "");
+          if (data.status === "queued" || data.status === "waiting_virtual_queue") {
+            const ahead = Math.max(0, Number(data.queue_position || 1) - 1);
+            setStatus(ahead > 0 ? `排队中... 当前前方 ${ahead} 个任务。` : "即将开始提取 iDEAL 链...");
+          } else if (steps.length !== lastStepCount) {
+            lastStepCount = steps.length;
+            setStatus(`正在生成... 已记录 ${lastStepCount} 条步骤日志。`);
+          }
+
+          if (data.status === "done") {
+            if (!data.diagnostic_url) await refreshDiagnosticLink(jobId);
+            renderLongLinkResult(data.result || {});
+            await saveQrRecordFromJob(jobId);
+            await refreshQueueStatus();
+            setStatus("生成完成。");
+            return;
+          }
+
+          if (data.status === "error") {
+            if (!data.diagnostic_url) await refreshDiagnosticLink(jobId);
+            if (data.result) renderLongLinkResult(data.result);
+            throw new Error(data.error || "生成失败");
+          }
+
+          await sleep(700);
+        }
+      }
+
+      function renderPaymentMethodsResult(result) {
+        const rows = Array.isArray(result?.countries) ? result.countries : [];
+        const tbody = $("methodsRows");
+        tbody.innerHTML = "";
+        for (const item of rows) {
+          const tr = document.createElement("tr");
+          const values = [
+            item.country || "",
+            item.currency || "",
+            item.amount_display || item.amount || "",
+            item.processor_entity || "",
+            null,
+            item.error || "",
+          ];
+          for (const value of values) {
+            const td = document.createElement("td");
+            if (value === null) {
+              const methodText = Array.isArray(item.payment_methods) ? item.payment_methods.join(", ") : "";
+              td.textContent = cleanDisplayText(methodText);
+              const link = item.provider_redirect_url || item.long_url || "";
+              if (link) {
+                const a = document.createElement("a");
+                a.href = link;
+                a.target = "_blank";
+                a.rel = "noreferrer";
+                a.textContent = "PayPal 链";
+                a.style.marginLeft = "8px";
+                td.appendChild(a);
+              }
+            } else {
+              td.textContent = cleanDisplayText(value);
+            }
+            tr.appendChild(td);
+          }
+          tbody.appendChild(tr);
+        }
+        $("methodsResult").classList.toggle("show", rows.length > 0);
+      }
+
+      async function pollPaymentMethodsJob(jobId) {
+        let lastStepCount = 0;
+        for (;;) {
+          const response = await fetch(`${API_BASE}/api/long-link/jobs/${encodeURIComponent(jobId)}`, {
+            cache: "no-store",
+          });
+          const data = await readJsonResponse(response);
+          if (!response.ok) throw new Error(data.detail || "读取支付方式检查任务失败");
+          renderQueueStatus(data);
+          const steps = Array.isArray(data.steps) ? data.steps : [];
+          renderStepLog(steps);
+          if (data.result) renderPaymentMethodsResult(data.result);
+          if (steps.length !== lastStepCount) {
+            lastStepCount = steps.length;
+            setStatus(`正在检查支付方式... 已记录 ${lastStepCount} 条步骤日志。`);
+          }
+          if (data.status === "done") {
+            renderPaymentMethodsResult(data.result || {});
+            setStatus("支付方式检查完成。");
+            return;
+          }
+          if (data.status === "error") {
+            if (data.result) renderPaymentMethodsResult(data.result);
+            throw new Error(data.error || "支付方式检查失败");
+          }
+          await sleep(700);
+        }
+      }
+
+      async function checkAllPaymentMethods() {
+        const accessToken = readAccessTokenInput();
+        if (!accessToken) {
+          setStatus("Access Token 不能为空。", true);
+          return;
+        }
+        checkMethodsButton.disabled = true;
+        $("methodsRows").innerHTML = "";
+        $("methodsResult").classList.remove("show");
+        renderStepLog([{ time: currentLogTime(), status: "info", name: "已提交支付方式检查", detail: "后端正在逐国执行 checkout + Stripe init。" }]);
+        setStatus("正在检查支付方式...");
+        try {
+          const proxyPayload = currentProxyPayload();
+          const response = await fetch(`${API_BASE}/api/payment-methods/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken,
+              ...proxyPayload,
+              ...cdkPayload,
+              ...priorityPayload,
+              billing_country: $("billingCountry").value,
+              checkout_ui_mode: $("checkoutMode").value,
+              payment_locale: $("paymentLocale").value,
+              stripe_publishable_key: $("stripeKey").value.trim(),
+              device_id: $("deviceId").value.trim(),
+              client_fingerprint: $("clientFingerprint").value,
+              user_agent: $("userAgent").value.trim(),
+            }),
+          });
+          const data = await readJsonResponse(response);
+          if (!response.ok) throw new Error(data.detail || "支付方式检查请求失败");
+          if (!data.job_id) throw new Error("后端没有返回任务 ID");
+          await pollPaymentMethodsJob(data.job_id);
+        } catch (error) {
+          setStatus(cleanDisplayText(error instanceof Error ? error.message : String(error)), true);
+        } finally {
+          checkMethodsButton.disabled = false;
+        }
+      }
+
+      async function sweepPayPalCountries() {
+        const accessToken = readAccessTokenInput();
+        if (!accessToken) {
+          setStatus("Access Token 不能为空。", true);
+          return;
+        }
+        paypalSweepButton.disabled = true;
+        $("methodsRows").innerHTML = "";
+        $("methodsResult").classList.remove("show");
+        renderStepLog([{ time: currentLogTime(), status: "info", name: "已提交 PayPal 国家轮询", detail: "后端正在按 JP 入口 + 目标国家出口逐个提取 PayPal 链。" }]);
+        setStatus("正在轮询 PayPal 国家...");
+        try {
+          const proxyPayload = currentProxyPayload();
+          const response = await fetch(`${API_BASE}/api/paypal-country-links/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken,
+              ...proxyPayload,
+              ...cdkPayload,
+              ...priorityPayload,
+              billing_country: $("billingCountry").value,
+              checkout_ui_mode: $("checkoutMode").value,
+              payment_locale: $("paymentLocale").value,
+              stripe_publishable_key: $("stripeKey").value.trim(),
+              device_id: $("deviceId").value.trim(),
+              client_fingerprint: $("clientFingerprint").value,
+              user_agent: $("userAgent").value.trim(),
+            }),
+          });
+          const data = await readJsonResponse(response);
+          if (!response.ok) throw new Error(data.detail || "PayPal 国家轮询请求失败");
+          if (!data.job_id) throw new Error("后端没有返回任务 ID");
+          await pollPaymentMethodsJob(data.job_id);
+        } catch (error) {
+          setStatus(cleanDisplayText(error instanceof Error ? error.message : String(error)), true);
+        } finally {
+          paypalSweepButton.disabled = false;
+        }
+      }
+
+      function setProxyLiveItem(id, text, state = "") {
+        const item = $(id);
+        item.textContent = text;
+        item.classList.remove("ok", "bad");
+        if (state) item.classList.add(state);
+      }
+
+      async function refreshLiveProxyStatus() {
+        setProxyLiveItem("proxyLiveJp", "JP: 检测中");
+        setProxyLiveItem("proxyLiveNl", "NL: 检测中");
+        try {
+          const response = await fetch(`${API_BASE}/api/proxy-chain-test`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              link_type: "ideal",
+              proxy: $("proxy").value.trim(),
+              checkoutProxyRegion: "JP",
+              providerProxyRegion: "NL",
+            }),
+          });
+          const data = await readJsonResponse(response);
+          if (!response.ok) throw new Error(data.detail || "代理检测失败");
+          const jpOk = Boolean(data.checkout && data.checkout.ok && data.checkout.match);
+          const nlOk = Boolean(data.provider && data.provider.ok && data.provider.match);
+          setProxyLiveItem("proxyLiveJp", jpOk ? "JP: 已连接" : "JP: 未连接", jpOk ? "ok" : "bad");
+          setProxyLiveItem("proxyLiveNl", nlOk ? "NL: 已连接" : "NL: 未连接", nlOk ? "ok" : "bad");
+        } catch (error) {
+          setProxyLiveItem("proxyLiveJp", "JP: 未连接", "bad");
+          setProxyLiveItem("proxyLiveNl", "NL: 未连接", "bad");
+        }
+      }
+
+      async function testProxyChain() {
+        testProxyButton.disabled = true;
+        $("proxyTestResult").textContent = "正在测试代理出口...";
+        setStatus("正在测试代理...");
+        try {
+          const response = await fetch(`${API_BASE}/api/proxy-chain-test`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(currentProxyPayload()),
+          });
+          const data = await readJsonResponse(response);
+          if (!response.ok) {
+            throw new Error(data.detail || "代理测试失败");
+          }
+          const lines = [
+            formatProbeResult("前段", data.checkout),
+            formatProbeResult("后段", data.provider),
+          ].filter(Boolean);
+          $("proxyTestResult").textContent = lines.join("  |  ");
+          setStatus(data.ok ? "代理测试成功，实际出口和选择一致。" : "代理测试完成，但实际出口和选择不一致。", !data.ok);
+        } catch (error) {
+          $("proxyTestResult").textContent = cleanDisplayText(error instanceof Error ? error.message : String(error));
+          setStatus("代理测试失败。", true);
+        } finally {
+          testProxyButton.disabled = false;
+        }
+      }
+
+      async function generate() {
+        const accessToken = readAccessTokenInput();
+        if (!accessToken) {
+          setStatus("Access Token 不能为空。", true);
+          return;
+        }
+
+        generateButton.disabled = true;
+        setLinkEnabled(false);
+        setDiagnosticLink("");
+        $("result").classList.remove("show");
+        $("luckStatus").textContent = "";
+        renderStepLog([
+          {
+            time: currentLogTime(),
+            status: "info",
+            name: "已提交生成请求",
+            detail: "后端正在执行，完成后这里会替换成完整步骤日志。",
+          },
+        ]);
+        setStatus("正在生成...");
+
+        try {
+          const proxyPayload = currentProxyPayload();
+          const cdkPayload = requireCdkReady();
+          const priorityPayload = readPriorityPayload();
+          await refreshCdkStatus();
+          updateProxyChainHint();
+          const response = await fetch(`${API_BASE}/api/long-link/start`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken,
+              ...proxyPayload,
+              ...cdkPayload,
+              ...priorityPayload,
+              billing_country: $("billingCountry").value,
+              checkout_ui_mode: $("checkoutMode").value,
+              payment_locale: $("paymentLocale").value,
+              stripe_publishable_key: $("stripeKey").value.trim(),
+              device_id: $("deviceId").value.trim(),
+              client_fingerprint: $("clientFingerprint").value,
+              user_agent: $("userAgent").value.trim(),
+            }),
+          });
+          const data = await readJsonResponse(response);
+          if (!response.ok) {
+            maybeAlertIcloudPurchase(data);
+            throw new Error(responseErrorMessage(data, "请求失败"));
+          }
+          if (!data.job_id) throw new Error("后端没有返回任务 ID");
+          renderCdkStatus(data.cdk);
+          renderQueueStatus(data);
+          await pollLongLinkJob(data.job_id);
+          await refreshCdkStatus();
+        } catch (error) {
+          currentLongUrl = "";
+          setStatus(cleanDisplayText(error instanceof Error ? error.message : String(error)), true);
+        } finally {
+          generateButton.disabled = false;
+        }
+      }
+
+      async function writeClipboardText(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch (error) {
+            // Fall through to the legacy copy path below.
+          }
+        }
+
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        textarea.setSelectionRange(0, text.length);
+        try {
+          return document.execCommand("copy");
+        } finally {
+          document.body.removeChild(textarea);
+        }
+      }
+
+      async function copyLink() {
+        const text = currentLongUrl || $("longUrl").textContent.trim();
+        if (!text) return;
+        try {
+          const copied = await writeClipboardText(text);
+          setStatus(copied ? "已复制。" : "复制失败，请手动选中长链复制。", !copied);
+        } catch (error) {
+          setStatus("复制失败，请手动选中长链复制。", true);
+        }
+      }
+
+      fillCountries();
+      fillProxyRegionOptions();
+      updateLockedCountry();
+      updateCurrency();
+      loadProxy();
+      renderStepLog([]);
+      $("accessToken").addEventListener("input", updateTokenMeta);
+      $("cdkCode").addEventListener("blur", () => refreshCdkStatus().catch(() => renderCdkStatus(null)));
+      $("cdkQq").addEventListener("blur", () => refreshCdkStatus().catch(() => renderCdkStatus(null)));
+      $("linkType").addEventListener("change", updateLockedCountry);
+      $("billingCountry").addEventListener("change", updateCurrency);
+      $("proxyChainPreset").addEventListener("change", () => applyDefaultProxyChain($("linkType").value));
+      $("checkoutProxyRegion").addEventListener("input", updateProxyChainHint);
+      $("providerProxyRegion").addEventListener("input", updateProxyChainHint);
+      document.addEventListener("mousedown", (event) => {
+        if (!(event.target instanceof Element) || !event.target.closest(".search-select")) hideProxyRegionMenus();
+      });
+      $("saveProxy").addEventListener("click", () => {
+        localStorage.setItem("openai_pay_long_link_proxy", $("proxy").value.trim());
+        setStatus("代理已保存在本机浏览器。");
+      });
+      $("clearProxy").addEventListener("click", () => {
+        localStorage.removeItem("openai_pay_long_link_proxy");
+        $("proxy").value = DEFAULT_PROXY_VALUE;
+        setStatus("已清除保存的代理。");
+        refreshLiveProxyStatus();
+      });
+      generateButton.addEventListener("click", generate);
+      $("qrModal").addEventListener("click", hideQrModal);
+      refreshQueueStatus();
+      setInterval(refreshQueueStatus, 5000);
+      checkMethodsButton.addEventListener("click", checkAllPaymentMethods);
+      paypalSweepButton.addEventListener("click", sweepPayPalCountries);
+      testProxyButton.addEventListener("click", async () => {
+        await testProxyChain();
+        refreshLiveProxyStatus();
+      });
+      refreshLiveProxyStatus();
+      copyButton.addEventListener("click", copyLink);
+      $("openQrLink").addEventListener("click", () => {
+        if (currentLongUrl) window.open(currentLongUrl, "_blank", "noopener");
+      });
+    </script>
+  </body>
+</html>

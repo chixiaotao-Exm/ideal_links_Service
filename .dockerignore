@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+*.log
+access_token.txt
+.env
+.env.*
+.git/
+.gitignore
+run-output/
+data/*.sqlite*
+data/confirm_body.txt
+data/paypal_confirm_post.txt
+app.py.bak*
+public/*.bak*
+server.out.log
+server.err.log

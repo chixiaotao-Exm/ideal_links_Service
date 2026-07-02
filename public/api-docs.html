@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>iDEAL2 API ??</title>
+  <style>
+    body{margin:0;background:#f6f8fb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,"Microsoft YaHei",sans-serif;color:#101828}
+    .hero{background:linear-gradient(135deg,#0b7f4f,#175cd3);color:#fff;padding:34px 22px}
+    .wrap{max-width:1100px;margin:-20px auto 60px;padding:0 18px}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:18px;box-shadow:0 12px 34px rgba(15,23,42,.08);padding:28px}
+    pre{white-space:pre-wrap;word-break:break-word;line-height:1.7;font-size:14px;font-family:Consolas,Monaco,"Microsoft YaHei",monospace}
+    h1{margin:0 0 8px}
+
+.github-project-footer {
+  margin: 34px auto 18px;
+  padding: 18px 0 0;
+  text-align: center;
+  color: #667085;
+}
+.github-project-footer a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #24292f;
+  font-weight: 700;
+  text-decoration: none;
+}
+.github-project-footer a:hover { text-decoration: underline; }
+.github-project-footer svg { width: 20px; height: 20px; fill: currentColor; }
+
+  </style>
+</head>
+<body>
+  <section class="hero"><h1>iDEAL2 API ??</h1><p>?? CDK??????????????????</p></section>
+  <main class="wrap"><div class="card"><pre># iDEAL2 API 文档
+
+本文档面向希望通过 HTTP API 集成本项目的开发者。你可以创建 iDEAL 提链任务、轮询任务状态、生成二维码、管理 QR 记录，并把这些能力接入自己的机器人、面板或后台系统。
+
+基础地址：
+
+```text
+http://127.0.0.1:8791
+```
+
+## 1. 创建 iDEAL 提链任务
+
+### 请求
+
+```http
+POST /api/extract/ideal
+Content-Type: application/json
+```
+
+完整地址：
+
+```text
+http://127.0.0.1:8791/api/extract/ideal
+```
+
+### 请求参数
+
+```json
+{
+  &quot;accessToken&quot;: &quot;ChatGPT Access Token&quot;,
+  &quot;cdkCode&quot;: &quot;CDK-XXXX-XXXX-XXXX&quot;
+}
+```
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `accessToken` | string | 是 | ChatGPT Access Token |
+| `cdkCode` | string | 是 | CDK，必须有剩余次数 |
+
+### 请求示例
+
+```bash
+curl -X POST &quot;http://127.0.0.1:8791/api/extract/ideal&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{
+    &quot;accessToken&quot;: &quot;eyJhbGciOi...&quot;,
+    &quot;cdkCode&quot;: &quot;CDK-XXXX-XXXX-XXXX&quot;
+  }&#x27;
+```
+
+### 成功返回示例
+
+```json
+{
+  &quot;ok&quot;: true,
+  &quot;job_id&quot;: &quot;0123456789abcdef0123456789abcdef&quot;,
+  &quot;status&quot;: &quot;queued&quot;,
+  &quot;queue_position&quot;: 0,
+  &quot;queue_size&quot;: 17,
+  &quot;created_at&quot;: 1782740326,
+  &quot;created_at_iso&quot;: &quot;2026-06-29T13:38:46+00:00&quot;
+}
+```
+
+| 字段 | 说明 |
+|---|---|
+| `ok` | 是否创建成功 |
+| `job_id` | 任务 ID，后续轮询使用 |
+| `status` | 任务状态 |
+| `queue_position` | 当前排队位置 |
+| `queue_size` | 当前队列数量 |
+| `created_at` | 任务创建时间戳 |
+| `created_at_iso` | ISO 格式创建时间 |
+
+---
+
+## 2. 查询任务状态 / 支付状态
+
+### 请求
+
+```http
+GET /api/extract/ideal/{job_id}
+```
+
+完整地址示例：
+
+```text
+http://127.0.0.1:8791/api/extract/ideal/0123456789abcdef0123456789abcdef
+```
+
+### 请求示例
+
+```bash
+curl &quot;http://127.0.0.1:8791/api/extract/ideal/0123456789abcdef0123456789abcdef&quot;
+```
+
+建议前端每 `3 秒` 轮询一次。
+
+### 等待中返回示例
+
+```json
+{
+  &quot;ok&quot;: true,
+  &quot;failed&quot;: false,
+  &quot;job_id&quot;: &quot;0123456789abcdef0123456789abcdef&quot;,
+  &quot;task_status&quot;: &quot;running&quot;,
+  &quot;queue_position&quot;: 0,
+  &quot;queue_size&quot;: 17,
+  &quot;long_url&quot;: &quot;&quot;,
+  &quot;payment_status&quot;: &quot;pending&quot;,
+  &quot;payment_label&quot;: &quot;等待生成&quot;,
+  &quot;remaining_seconds&quot;: 0,
+  &quot;remaining_text&quot;: &quot;--:--&quot;
+}
+```
+
+### 成功返回示例
+
+```json
+{
+  &quot;ok&quot;: true,
+  &quot;failed&quot;: false,
+  &quot;job_id&quot;: &quot;0123456789abcdef0123456789abcdef&quot;,
+  &quot;task_status&quot;: &quot;done&quot;,
+  &quot;long_url&quot;: &quot;https://pay.ideal.nl/transactions/&lt;redacted&gt;?sig=&lt;redacted&gt;&quot;,
+  &quot;payment_status&quot;: &quot;pending&quot;,
+  &quot;payment_label&quot;: &quot;等待支付&quot;,
+  &quot;payment_view&quot;: &quot;INITIAL_VIEW&quot;,
+  &quot;remaining_seconds&quot;: 815,
+  &quot;remaining_text&quot;: &quot;13:35&quot;,
+  &quot;expires_at&quot;: 1782741226
+}
+```
+
+### 已支付返回示例
+
+```json
+{
+  &quot;ok&quot;: true,
+  &quot;failed&quot;: false,
+  &quot;job_id&quot;: &quot;0123456789abcdef0123456789abcdef&quot;,
+  &quot;task_status&quot;: &quot;done&quot;,
+  &quot;long_url&quot;: &quot;https://pay.ideal.nl/transactions/&lt;redacted&gt;?sig=&lt;redacted&gt;&quot;,
+  &quot;payment_status&quot;: &quot;paid&quot;,
+  &quot;payment_label&quot;: &quot;已支付&quot;,
+  &quot;payment_view&quot;: &quot;CONFIRMED_VIEW&quot;,
+  &quot;remaining_seconds&quot;: 500,
+  &quot;remaining_text&quot;: &quot;08:20&quot;
+}
+```
+
+### 失败返回示例
+
+```json
+{
+  &quot;ok&quot;: false,
+  &quot;failed&quot;: true,
+  &quot;job_id&quot;: &quot;0123456789abcdef0123456789abcdef&quot;,
+  &quot;task_status&quot;: &quot;error&quot;,
+  &quot;error&quot;: &quot;checkout create failed: Billing country must match request country.&quot;,
+  &quot;last_error_step&quot;: {
+    &quot;time&quot;: &quot;21:39:54&quot;,
+    &quot;name&quot;: &quot;创建 ChatGPT checkout&quot;,
+    &quot;status&quot;: &quot;fail&quot;,
+    &quot;detail&quot;: &quot;Billing country must match request country.&quot;
+  },
+  &quot;long_url&quot;: &quot;&quot;,
+  &quot;payment_status&quot;: &quot;pending&quot;,
+  &quot;payment_label&quot;: &quot;等待生成&quot;
+}
+```
+
+---
+
+## 3. 任务状态说明
+
+| `task_status` | 说明 |
+|---|---|
+| `queued` | 排队中 |
+| `running` | 正在提取 |
+| `done` | 提取成功 |
+| `error` | 提取失败 |
+
+---
+
+## 4. 支付状态说明
+
+| `payment_status` | 说明 |
+|---|---|
+| `pending` | 等待支付 / 等待生成 |
+| `paid` | 已支付 |
+| `failed` | 支付失败 |
+| `cancelled` | 已取消 |
+| `expired` | 已过期 |
+| `unsupported` | 非 iDEAL 链接，无法检测 |
+
+---
+
+## 5. 二维码生成方式
+
+轮询任务接口成功后，会返回 `long_url`：
+
+```json
+{
+  &quot;task_status&quot;: &quot;done&quot;,
+  &quot;long_url&quot;: &quot;https://pay.ideal.nl/transactions/&lt;redacted&gt;?sig=&lt;redacted&gt;&lt;redacted-ideal-token&gt;?sig=...&quot;
+}
+```
+
+前端需要把 `long_url` 进行 URL 编码，然后拼接到二维码接口：
+
+```text
+http://127.0.0.1:8791/api/qr?text=URL编码后的long_url
+```
+
+### JavaScript 示例
+
+```js
+const longUrl = data.long_url
+
+const qrUrl =
+  &quot;http://127.0.0.1:8791/api/qr?text=&quot; +
+  encodeURIComponent(longUrl)
+```
+
+页面显示：
+
+```html
+&lt;img src=&quot;二维码地址&quot; /&gt;
+```
+
+完整示例：
+
+```js
+if (data.task_status === &quot;done&quot; &amp;&amp; data.long_url) {
+  const qrUrl =
+    &quot;http://127.0.0.1:8791/api/qr?text=&quot; +
+    encodeURIComponent(data.long_url)
+
+  document.querySelector(&quot;#qr&quot;).src = qrUrl
+}
+```
+
+### 示例二维码地址
+
+假设 `long_url` 是：
+
+```text
+https://pay.ideal.nl/transactions/&lt;redacted&gt;?sig=&lt;redacted&gt;&lt;redacted-ideal-token&gt;?sig=&lt;redacted-signature&gt;
+```
+
+拼接后的二维码地址是：
+
+```text
+http://127.0.0.1:8791/api/qr?text=&lt;url-encoded-long_url&gt;&lt;redacted-ideal-token&gt;%3Fsig%3D&lt;redacted-signature&gt;
+```
+
+### 注意
+
+二维码接口生成的不是普通网页二维码，后端会自动解析 iDEAL 长链内部的真实支付二维码内容。
+
+前端只需要传 `long_url`，不要自己打开长链，也不要自己解析里面的二维码。
+
+---
+
+## 6. 前端推荐流程
+
+```text
+1. 用户提交 accessToken + cdkCode
+2. POST /api/extract/ideal 创建任务
+3. 拿到 job_id
+4. 每 3 秒 GET /api/extract/ideal/{job_id}
+5. task_status = done 时展示 long_url / 二维码
+6. payment_status = pending 时显示等待支付
+7. payment_status = paid 时显示已支付
+8. task_status = error 时显示 error 错误信息
+```
+
+---
+
+## 7. PowerShell 测试示例
+
+```powershell
+$body = @{
+  accessToken = &quot;你的AT&quot;
+  cdkCode = &quot;CDK-XXXX-XXXX-XXXX&quot;
+} | ConvertTo-Json
+
+$r = Invoke-RestMethod `
+  -Uri &quot;http://127.0.0.1:8791/api/extract/ideal&quot; `
+  -Method Post `
+  -ContentType &quot;application/json&quot; `
+  -Body $body
+
+$r
+
+Start-Sleep -Seconds 3
+
+Invoke-RestMethod &quot;http://127.0.0.1:8791/api/extract/ideal/$($r.job_id)&quot;
+```
+
+---
+
+## 8. 二维码后台多用户抢单接口
+
+### 随机抢单
+
+```http
+POST /api/qr-records/grab
+Content-Type: application/json
+```
+
+完整地址：
+
+```text
+http://127.0.0.1:8791/api/qr-records/grab
+```
+
+请求参数：
+
+```json
+{
+  &quot;watcher&quot;: &quot;值守员A&quot;
+}
+```
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `watcher` | string | 是 | 当前值守员名称 |
+
+说明：
+
+```text
+后端会从当前未认领、未支付、未过期、未失败、未取消的订单池里随机分配一个订单。
+不是固定抢第一个订单。
+```
+
+成功返回：
+
+```json
+{
+  &quot;ok&quot;: true,
+  &quot;record&quot;: {
+    &quot;id&quot;: 1,
+    &quot;created_at&quot;: 1782742000,
+    &quot;job_id&quot;: &quot;abc123&quot;,
+    &quot;qq&quot;: &quot;190****049&quot;,
+    &quot;remaining&quot;: 998,
+    &quot;total&quot;: 999,
+    &quot;long_url&quot;: &quot;https://pay.ideal.nl/transactions/&lt;redacted&gt;?sig=&lt;redacted&gt;&quot;,
+    &quot;status&quot;: &quot;pending&quot;,
+    &quot;expires_at&quot;: 1782742900,
+    &quot;email_tag&quot;: &quot;example&quot;,
+    &quot;watcher&quot;: &quot;值守员A&quot;,
+    &quot;watcher_at&quot;: 1782742100
+  }
+}
+```
+
+没有可抢订单：
+
+```json
+{
+  &quot;ok&quot;: false,
+  &quot;detail&quot;: &quot;当前没有可抢订单&quot;
+}
+```
+
+---
+
+### 认领 / 释放指定订单
+
+```http
+POST /api/qr-records/{record_id}/watcher
+Content-Type: application/json
+```
+
+认领请求：
+
+```json
+{
+  &quot;action&quot;: &quot;claim&quot;,
+  &quot;watcher&quot;: &quot;值守员A&quot;
+}
+```
+
+释放请求：
+
+```json
+{
+  &quot;action&quot;: &quot;release&quot;
+}
+```
+
+成功返回：
+
+```json
+{
+  &quot;ok&quot;: true,
+  &quot;id&quot;: 1,
+  &quot;watcher&quot;: &quot;值守员A&quot;,
+  &quot;watcher_at&quot;: 1782742100
+}
+```
+
+---
+
+### 获取二维码订单池记录
+
+```http
+GET /api/qr-records?limit=200&amp;refresh=1
+```
+
+完整地址：
+
+```text
+http://127.0.0.1:8791/api/qr-records?limit=200&amp;refresh=1
+```
+
+返回字段中新增：
+
+| 字段 | 说明 |
+|---|---|
+| `watcher` | 当前认领该订单的值守员，空表示还在订单池 |
+| `watcher_at` | 认领时间戳 |
+| `display_status` | 后台展示状态 |
+| `deduped` | 是否为重复邮箱订单 |
+
+前端多用户隔离建议：
+
+```text
+1. 每个值守员先填写 watcher 名称。
+2. 页面每 3 秒请求 /api/qr-records?limit=200&amp;refresh=1。
+3. 前端只展示 watcher 为空 或 watcher 等于当前值守员的订单。
+4. 点击“随机抢单”调用 /api/qr-records/grab。
+5. 点击二维码放大时，可以调用 /api/qr-records/{id}/watcher 自动认领。
+6. 支付完成后，后台状态会变成 paid，前端可自动关闭放大二维码。
+```</pre></div>
+<!-- project-footer:start -->
+<footer class="github-project-footer">
+  <a href="https://github.com/chixiaotao-Exm/ideal_links_Service" target="_blank" rel="noopener noreferrer" aria-label="GitHub: ideal_links_Service">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.65 7.65 0 0 1 8 3.87c.68 0 1.36.09 2 .26 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"></path></svg>
+    <span>ideal_links_Service</span>
+  </a>
+</footer>
+<!-- project-footer:end -->
+</main>
+</body>
+</html>

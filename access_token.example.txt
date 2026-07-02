@@ -1,0 +1,2 @@
+把个人 Access Token 放到同目录的 `access_token.txt`（该文件已被 `.gitignore` 排除）。
+公开仓库只保留此示例文件，禁止提交真实 Token / session JSON。
