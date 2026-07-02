@@ -369,10 +369,6 @@ volumes:
 
 这样容器重启后 CDK、插队卡、二维码记录和值守认领信息才会保留。
 
-## License
-
-请按你的仓库实际授权方式补充 License，例如 MIT、Apache-2.0 或私有授权。
-
 ---
 
 <!-- project-footer:start -->
